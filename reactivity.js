@@ -62,17 +62,26 @@ function ref(raw) {
         set value(newVal) {
             raw = newVal
             trigger(r, 'value')
+        },
+        toString() {
+            return raw
         }
     }
     return r
 }
 
-effect(() => { salePrice.value = product.price * 0.9 })
-effect(() => { total = salePrice.value * product.quantity })
+function computed(getter) {
+    let result = ref()
+    effect(()=> {result.value = getter()})
+    return result
+}
 
-console.log(total)
-console.log(salePrice.value)
+effect(() => { salePrice.value = product.price * 0.9 })
+total = computed(() => salePrice.value * product.quantity )
+
+console.log(total + '')
+console.log(salePrice + '')
 product.quantity = 3
 product.price = 10
-console.log(total)
-console.log(salePrice.value)
+console.log(total + '')
+console.log(salePrice + '')
