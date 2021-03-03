@@ -15,21 +15,41 @@ class Dep {
         this.trigger()
     }
     track() {
-        if(activeEffect) {
+        if(!this.subscribers.has(activeEffect) && activeEffect) {
             this.subscribers.add(activeEffect)
+            activeEffect.deps.push(this.subscribers)
         }
     }
     trigger() {
+        const runEffect = []
         this.subscribers.forEach(eff => {
+            runEffect.push(eff)
+        })
+        runEffect.forEach(eff => {
+            cleanup(eff)
+            activeEffect = eff
             eff()
+            activeEffect = null
         })
     }
 }
 
 function watchEffect(eff) {
+    if(!eff.deps) {
+        eff.deps = []
+    }
     activeEffect = eff
     eff()
     activeEffect = null
+}
+
+function cleanup(eff) {
+    if(eff.deps.length) {
+        for(let i = 0; i < eff.deps.length; i++) {
+            eff.deps[i].delete(eff)
+        }
+        eff.deps.length = 0
+    }
 }
 
 const msg = new Dep('hello')
@@ -43,7 +63,9 @@ watchEffect(() => {
                       // 重新触发 track 并记录 effect 下 deps
         console.log(msg.value)
     }
+    console.log('effect run')
 })
+
 check.value = false
 msg.value = 'world'
 </script>
