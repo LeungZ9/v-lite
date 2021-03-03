@@ -1,0 +1,49 @@
+<script>
+let activeEffect = null
+
+class Dep {
+    constructor(value) {
+        this.subscribers = new Set()
+        this._value = value
+    }
+    get value() {
+        this.track()
+        return this._value
+    }
+    set value(nVal) {
+        this._value = nVal
+        this.trigger()
+    }
+    track() {
+        if(activeEffect) {
+            this.subscribers.add(activeEffect)
+        }
+    }
+    trigger() {
+        this.subscribers.forEach(eff => {
+            eff()
+        })
+    }
+}
+
+function watchEffect(eff) {
+    activeEffect = eff
+    eff()
+    activeEffect = null
+}
+
+const msg = new Dep('hello')
+const check = new Dep(true)
+watchEffect(() => {
+    if(check.value) { // *cleanup函数
+                      // effect 下具有 deps 属性以记录 effect 所对应的依赖
+                      // 在 effect 被下一次执行时
+                      // 通过 cleanup 情况清空 deps 下依赖
+                      // enableTracking 并重新将 activeEffect 赋值为effect
+                      // 重新触发 track 并记录 effect 下 deps
+        console.log(msg.value)
+    }
+})
+check.value = false
+msg.value = 'world'
+</script>
