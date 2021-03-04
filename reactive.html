@@ -1,0 +1,101 @@
+<script>
+let activeEffect = null
+
+class Dep {
+    subscribers = new Set()
+    track() {
+        if(!this.subscribers.has(activeEffect) && activeEffect) {
+            this.subscribers.add(activeEffect)
+            activeEffect.deps.push(this.subscribers)
+        }
+    }
+    trigger() {
+        const runEffect = []
+        this.subscribers.forEach(eff => {
+            runEffect.push(eff)
+        })
+        runEffect.forEach(eff => {
+            activeEffect = eff
+            eff()
+            activeEffect = null
+        })
+    }
+}  
+
+//Vue2
+//缺点: no way to detect new property additions in Object
+function reactiveV2(raw) {
+    Object.keys(raw).forEach(key => {
+        const dep = new Dep()
+        let value = raw[key]
+
+        Object.defineProperty(raw, key, {
+            get() {
+                dep.track()
+                return value
+            },
+            set(newVal) {
+                value = newVal
+                dep.trigger()
+            }
+        })
+    })
+    return raw
+}
+
+const targetMap = new WeakMap()
+const reactiveV3Handlers = {
+    get(target, key, receiver) {
+        const dep = getDep(target, key)
+        dep.track()
+        return Reflect.get(target, key, receiver)
+    },
+    set(target, key, value, receiver) {
+        const dep = getDep(target, key)
+        const result = Reflect.set(target, key, value, receiver)
+        dep.trigger()
+        return result
+    }
+}
+
+function getDep(target, key) {
+    let depsMap = targetMap.get(target)
+    if(!depsMap) {
+        depsMap = new Map()
+        targetMap.set(target, depsMap)
+    }
+    let dep = depsMap.get(key)
+    if(!dep) {
+        dep = new Dep()
+        depsMap.set(key, dep)
+    }
+    return dep 
+}
+
+function reactiveV3(raw){
+    return new Proxy(raw, reactiveV3Handlers)
+}
+
+function watchEffect(eff) {
+    if(!eff.deps) {
+        eff.deps = []
+    }
+    activeEffect = eff
+    eff()
+    activeEffect = null
+}
+
+const stateV2 = reactiveV2({
+    count: 0
+})
+watchEffect(() => {
+    console.log(stateV2.count)
+})
+stateV2.count++
+
+const stateV3 = reactiveV3({})
+watchEffect(() => {
+    console.log(stateV3.count)
+})
+stateV3.count = 1
+</script>
