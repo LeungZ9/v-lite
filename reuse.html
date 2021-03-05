@@ -1,0 +1,137 @@
+<div id="app"></div>
+<script src="https://unpkg.com/vue@next"></script>
+<script>
+const { createApp, h, ref, onMounted, onUnmounted } = Vue
+
+// mixin
+// 缺点: namespace collisions, unclear source of injection
+// const MouseMixin = {
+//     data() {
+//         return {
+//             x: 0,
+//             y: 0
+//         }
+//     },
+//     methods: {
+//         update(e) {
+//             this.x = e.pageX
+//             this.y = e.pageY
+//         }
+//     },
+//     mounted() {
+//         window.addEventListener('mousemove', this.update)
+//     },
+//     unmounted() {
+//         window.removeEventListener('mousemove', this.update)
+//     }
+// }
+// const App = {
+//     mixins: [MouseMixin, ...mixins], 
+//     template: `{{ x }} {{ y }} ...`,
+// }
+
+// high order component
+// 缺点: namespace collisions, unclear source of injection
+// function withMouse(Inner) {
+//     return {
+//         data() {
+//             return {
+//                 x: 0,
+//                 y: 0
+//             }
+//         },
+//         methods: {
+//             update(e) {
+//                 this.x = e.pageX
+//                 this.y = e.pageY
+//             }
+//         },
+//         mounted() {
+//             window.addEventListener('mousemove', this.update)
+//         },
+//         unmounted() {
+//             window.removeEventListener('mousemove', this.update)
+//         },
+//         render() {
+//             return h(Inner, {
+//                 x: this.x,
+//                 y: this.y
+//             })
+//         }
+//     }
+// }
+// const App = ...with(withMouse({
+//     props: ['x', 'y', ...],
+//     template: `{{ x }} {{ y }} ...`
+// }))
+
+// scoped slots
+// 缺点: pay extra cost of additional component instances
+// const Mouse = {
+//     data() {
+//         return {
+//             x: 0,
+//             y: 0
+//         }
+//     },
+//     methods: {
+//         update(e) {
+//             this.x = e.pageX
+//             this.y = e.pageY
+//         }
+//     },
+//     mounted() {
+//         window.addEventListener('mousemove', this.update)
+//     },
+//     unmounted() {
+//         window.removeEventListener('mousemove', this.update)
+//     },
+//     render() {
+//         return this.$slots.default && this.$slots.default({
+//             x: this.x,
+//             y: this.y
+//         })
+//     }
+// }
+// const App = {
+//     components: { Mouse, ... },
+//     template: 
+//         `<Mouse v-slot="{ x, y }">
+//             <... v-slot="{ ... }">
+//                 {{ x }} {{ y }} ...
+//             </...>
+//         </Mouse>`
+// }
+
+// composition api
+function useMouse() {
+    const x = ref(0)
+    const y = ref(0)
+    const update = e => {
+        x.value = e.pageX
+        y.value = e.pageY
+    }
+    onMounted(() => {
+        window.addEventListener('mousemove', update)
+    })
+    onUnmounted(() => {
+        window.removeEventListener('mousemove', update)
+    })
+    return {
+        x,
+        y
+    }
+}
+const App = {
+    setup() {
+        const { x, y } = useMouse()
+        return {
+            x,
+            y
+        }
+    },
+    template: `{{ x }} {{ y }}`
+}
+
+createApp(App).mount('#app')
+</script>
