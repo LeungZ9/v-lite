@@ -25,7 +25,7 @@
             children
         }
     }
-    function mount(vnode, container) {
+    function mount(vnode, container, replace) {
         const el = vnode.el = document.createElement(vnode.tag)
         if (vnode.props) {
             for (const key in vnode.props) {
@@ -34,15 +34,19 @@
             }
         }
         if (vnode.children) {
-            vnode.children.forEach(child => {
-                if (typeof child === 'string') {
-                    el.textContent = child
-                } else {
-                    mount(child, el)
-                }
-            })
+            if (typeof vnode.children === 'string') {
+                el.textContent = vnode.children
+            } else  {
+                vnode.children.forEach(child => {
+                    if (typeof child === 'string') {
+                        el.textContent = child
+                    } else {
+                        mount(child, el)
+                    }
+                })
+            }
         }
-        container.appendChild(el)
+        replace ? container.replaceWith(el) : container.appendChild(el)
     }
 
     function patch(n1, n2) {
@@ -81,7 +85,7 @@
                 } else {
                     const commonLength = Math.min(oldChildren.length, newChildren.length)
                     for (let i = 0; i < commonLength; i++) {
-                        patch(oldChildren, newChildren)
+                        patch(oldChildren[i], newChildren[i])
                     }
                     if (newChildren.length > oldChildren.length) {
                         newChildren.slice(oldChildren.length).forEach(child => {
@@ -96,19 +100,23 @@
             }
         } else {
             // replace
+            mount(n2, n1.el, true)
         }
     }
 
-    const vdom = h('div', null, [
-        h('span', null, [h('span', null, ['hello world'])])
-    ])
-
-    const vdom2 = h('div', { class: 'red' }, 'changed!')
+    let vdom = h('div', null, 'hello world')
+    let nextVdom = null
+    setTimeout(function () {
+        nextVdom = h('div', { class: 'red' }, [h('span', null, 'changed')])
+        patch(vdom, nextVdom)
+        vdom = nextVdom
+        setTimeout(function () {
+            nextVdom = h('div', { class: 'red' }, [h('p', null, 'changed p')])
+            patch(vdom, nextVdom)
+        }, 1000)
+    }, 1000)
 
     mount(vdom, document.getElementById('app'))
-    setTimeout(function () {
-        patch(vdom, vdom2)
-    }, 300)
 </script>
 
 </html>
