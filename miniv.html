@@ -164,6 +164,8 @@ function mountApp(component, container) {
             mount(prevVdom, container)
             mounted = true
         } else {
+            //Vue3 source code will like that
+            //const newVdom = component.render.call(renderContext)
             const newVdom = component.render()
             patch(prevVdom, newVdom)
             prevVdom = newVdom

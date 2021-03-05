@@ -16,7 +16,8 @@
   },
   "homepage": "https://github.com/LeungZ9/v-lite#readme",
   "dependencies": {
-    "@vue/reactivity": "^3.0.7"
+    "@vue/reactivity": "^3.0.7",
+    "@vue/runtime-core": "^3.0.7"
   },
   "devDependencies": {
     "@babel/core": "^7.13.8",
