@@ -79,9 +79,18 @@ function ref(raw) {
     return r
 }
 
+// @vue/reactivity
+// computed.ts
+// 计算属性优点: 当依赖没有发生变化, 可以避免再一次函数计算, 直接使用上一次缓存值
 function computed(getter) {
     let result = ref()
-    effect(()=> {result.value = getter()})
+    effect(()=> {result.value = getter()}, {
+        _dirty: true, // 判断是否需要重新计算
+                      // 在 get value(), 只有 _dirty 为真, 才重新执行 getter 重新计算
+                      // 当 _dirty 为假， 返回缓存的 _value
+        lazy: true, // 延时执行, 当真正被访问时，才真正运行 getter 函数
+        scheduler() {}
+    })
     return result
 }
 
