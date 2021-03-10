@@ -23,7 +23,7 @@ class Dep {
 }  
 
 //Vue2
-//缺点: no way to detect new property additions in Object
+//缺点: no way to detect new property additions in Object, 初始化递归遍历时的性能负担
 function reactiveV2(raw) {
     Object.keys(raw).forEach(key => {
         const dep = new Dep()
@@ -72,6 +72,9 @@ function getDep(target, key) {
     return dep 
 }
 
+// 可 reactive 对象类型：Object, Array, Map, Set, WeakMap, WeakSet
+// 劫持行为: get, set, deleteProperty, has( in 操作符触发), ownKeys( Object.getOwnPropertyNames 触发 )
+// 劫持get行为: 1. 针对数组 [] 原生方法特效处理 arrayInstrumentations 2. 针对子为对象时, 子对象被访问时才 reactive
 function reactiveV3(raw){
     return new Proxy(raw, reactiveV3Handlers)
 }

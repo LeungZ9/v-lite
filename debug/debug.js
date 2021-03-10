@@ -21,3 +21,6 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 
 console.log(render())
+
+var b = reactive([])
+b.push('a')
