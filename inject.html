@@ -1,0 +1,64 @@
+<div id="app"></div>
+<script type="module">
+import { valSetup, val } from './inject.mjs'
+import { createApp } from 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.0.7/vue.esm-browser.js'
+
+// export & import
+// 作用域：全局范围，任何地方都可以用只要声明该引用
+// 数据涞源：使用方必须清楚知道哪个模块定义
+const Child = {
+    setup() {
+        valSetup()
+        return {
+            val
+        }
+    },
+    template: `{{ val }}`
+}
+
+const App = {
+    components: { Child },
+    setup() {
+        return {}
+    },
+    template: `<Child />`
+}
+
+createApp(App).mount('#app')
+</script>
+<!-- <script src="https://unpkg.com/vue@next"></script> -->
+<!-- <script>
+const { createApp, ref, provide, inject, onMounted } = Vue
+
+//provide & inject
+// 作用域：局部范围，注入数据的节点的子后代组件中才可访问
+// 数据涞源：对于使用方，不需要清楚数据的涞源
+// 组件依赖链必须不能更改
+// 更适用于特定组件集，如 下拉组件集内的select 与option
+const val = ref(0)
+const Child = {
+    setup() {
+        const val = inject('val', 0)
+        onMounted(() => {
+            window.addEventListener('click', () => {
+                val.value++
+            })
+        })
+        return {
+            val
+        }
+    },
+    template: `{{ val }}`
+}
+
+const App = {
+    components: { Child },
+    setup() {
+        provide('val', val)
+        return {}
+    },
+    template: `<Child />`
+}
+
+createApp(App).mount('#app')
+</script> -->
