@@ -1,0 +1,135 @@
+<div id="app"></div>
+<script>
+    const TEXT_ELEMENT = 'TEXT_ELEMENT'
+    function createTextElement(text) {
+        return {
+            type: TEXT_ELEMENT,
+            props: {
+                nodeValue: text,
+                children: []
+            }
+        }
+    }
+    function createElement(type, prop, ...children) {
+        return {
+            type,
+            props: {
+                ...prop,
+                children: children.map(child => {
+                    return typeof child === 'object' ? child : createTextElement(child)
+                })
+            }
+        }
+    }
+
+    function render(ele, container) {
+        const dom = ele.type === TEXT_ELEMENT ? 
+            document.createTextNode('') : document.createElement(ele.type)
+
+        Object.keys(ele.props).forEach(name => {
+            if(name !== 'children') {
+                dom[name] = ele.props[name]
+            }
+        })
+
+        ele.props.children.forEach(child => {
+            this.render(child, dom)
+        })
+
+        container.appendChild(dom)
+    }
+
+    // fiber
+    let nextUnitOfWork = null
+    function workLoop(deadline) {
+        let shouldYield = false
+        while(nextUnitOfWork && !shouldYield) {
+            nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+            shouldYield = deadline.timeRemaining() < 1
+        }
+        requestIdleCallback(workLoop)
+    }
+
+    function createDom(ele) {
+        const dom = ele.type === TEXT_ELEMENT ? 
+            document.createTextNode('') : document.createElement(ele.type)
+
+        Object.keys(ele.props).forEach(name => {
+            if(name !== 'children') {
+                dom[name] = ele.props[name]
+            }
+        })
+        return dom
+    }
+
+    function renderFiber(ele, container) {
+        nextUnitOfWork = {
+            dom: container,
+            props: {
+                children: [ele]
+            }
+        }
+        requestIdleCallback(workLoop)
+    }
+
+    function performUnitOfWork(fiber) {
+        // to add dom node
+        if (!fiber.dom) {
+            fiber.dom = createDom(fiber)
+        }
+        if (fiber.parent) {
+            fiber.parent.dom.appendChild(fiber.dom)
+        }
+
+        // to create new fibers
+        const elements = fiber.props.children
+        let index = 0
+        let prevSibling = null
+
+        while(index < elements.length) {
+            const element = elements[index]
+
+            const newFibler = {
+                type: element.type,
+                props: element.props,
+                parent: fiber,
+                dom: null
+            }
+
+            if (index === 0) {
+                fiber.child = newFibler
+            } else {
+                prevSibling.sibling = newFibler
+            }
+
+            prevSibling = newFibler
+            index++
+        }
+
+        // to return next unit of work
+        if(fiber.child) {
+            return fiber.child
+        }
+        let nextFiber = fiber
+        while(nextFiber) {
+            if(nextFiber.sibling) {
+                return nextFiber.sibling
+            }
+            nextFiber = nextFiber.parent
+        }
+    }
+
+    const React = {
+        createElement,
+        render,
+        renderFiber
+    }
+    
+    React.renderFiber(
+        React.createElement('div', { id: 'foo' }, 
+            React.createElement('span', null, 'bar'), 
+            React.createElement('p')
+        ), 
+        document.getElementById('app')
+    )
+</script>
