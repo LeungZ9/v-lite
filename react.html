@@ -1,6 +1,9 @@
 <div id="app"></div>
 <script>
     const TEXT_ELEMENT = 'TEXT_ELEMENT'
+    const EFFECT_PLACEMENT = 'PLACEMENT'
+    const EFFECT_DELETION = 'DELETION'
+    const EFFECT_UPDATE = 'UPDATE'
     function createTextElement(text) {
         return {
             type: TEXT_ELEMENT,
@@ -41,11 +44,44 @@
 
     // fiber
     let nextUnitOfWork = null
+    let wipRoot = null
+    let currentRoot = null
+    let deletions = null
+
+    function commitRoot() {
+        deletions.forEach(commitWork)
+        commitWork(wipRoot.child)
+        currentRoot = wipRoot
+        wipRoot = null
+    }
+
+    function commitWork(fiber) {
+        if(!fiber) {
+            return
+        }
+        const domParent = fiber.parent.dom
+        if(fiber.effectTag === EFFECT_PLACEMENT && fiber.dom != null) {
+            domParent.appendChild(fiber.dom)
+        } else if (fiber.effectTag === EFFECT_UPDATE && fiber.dom != null) {
+            updateDom(fiber.dom, fiber.alternate.props, fiber.props)
+        } else if (fiber.effectTag === EFFECT_DELETION) {
+            domParent.removeChild(fiber.dom)
+        }
+        domParent.appendChild(fiber.dom)
+        commitWork(fiber.child)
+        commitWork(fiber.sibling)
+    }
+
     function workLoop(deadline) {
         let shouldYield = false
         while(nextUnitOfWork && !shouldYield) {
             nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
             shouldYield = deadline.timeRemaining() < 1
+        }
+
+        // 当所有 fibier树都完成遍历后, 才提交DOM渲染操作, 避免页面上出现不完整UI
+        if(!nextUnitOfWork && wipRoot) {
+            commitRoot()
         }
         requestIdleCallback(workLoop)
     }
@@ -62,42 +98,103 @@
         return dom
     }
 
+    function updateDom(dom, prevProps, nextProps) {
+        Object.keys(prevProps).forEach(item => {
+            if(item !== 'children' && !(item in nextProps)) {
+                if(item.startsWith('on')) {
+                    dom.removeEventListener(item.slice(2).toLowerCase(), prevProps[item])
+                } else {
+                    dom[item] = ''
+                }
+            }
+        })
+
+        Object.keys(nextProps).forEach(item => {
+            if(item !== 'children' && nextProps[item] !== prevProps[item]) {
+                if(item.startsWith('on')) {
+                    dom.addEventListener(item.slice(2).toLowerCase(), nextProps[item])
+                } else {
+                    dom[item] = nextProps[item] 
+                }
+            }
+        })
+    }
+
     function renderFiber(ele, container) {
-        nextUnitOfWork = {
+        nextUnitOfWork = wipRoot = {
             dom: container,
             props: {
                 children: [ele]
-            }
+            },
+            alternate: currentRoot
         }
+        deletions = []
         requestIdleCallback(workLoop)
     }
 
-    function performUnitOfWork(fiber) {
-        // to add dom node
-        if (!fiber.dom) {
-            fiber.dom = createDom(fiber)
-        }
-        if (fiber.parent) {
-            fiber.parent.dom.appendChild(fiber.dom)
-        }
-
-        // to create new fibers
-        const elements = fiber.props.children
+    // react children differ
+    // 第一轮遍历
+    // i = 0, 遍历newChildren, 将newChildren[i]与oldFiber比较, 判断DOM节点是否可复用
+    // 如果可复用, i++, 继续比较newChildren[i]与oldFiber.sibling, 可以复用则继续遍历
+    // 如果不可复用, 分两种情况:
+    // 1. key不同导致不可复用, 立即跳出整个遍历, 第一轮遍历结束 A
+    // 2. key相同type不同导致不可复用, 会将oldFiber标记为DELETION, 并继续遍历
+    //    如果newChildren遍历完 (即i === newChildren.length - 1)
+    //    或者oldFiber遍历完 (即oldFiber.sibling === null) 跳出遍历, 第一轮遍历结束 B
+    // 第二轮遍历
+    // 第一轮遍历结束 B:
+    // B.1 newChildren与oldFiber同时遍历完, Diff结束
+    // B.2 newChildren没遍历完, oldFiber遍历完,
+    //     已有的DOM节点都复用了, 这时还有新加入的节点, 意味着本次更新有新节点插入, 
+    //     我们只需要遍历剩下的newChildren生成 Placement 的 fiber
+    // B.3 newChildren遍历完, oldFiber没遍历完
+    //     本次更新比之前的节点数量少, 有节点被删除了. 所以需要遍历剩下的oldFiber, 标记Deletion
+    function reconcileChildren(wipFiber, elements) {
         let index = 0
+        let oldFiber = wipFiber.alternate && wipFiber.alternate.child
         let prevSibling = null
 
-        while(index < elements.length) {
+        while(index < elements.length || oldFiber != null) {
+            let newFibler = null
             const element = elements[index]
+            const sameType = oldFiber && element && element.type == oldFiber.type
 
-            const newFibler = {
-                type: element.type,
-                props: element.props,
-                parent: fiber,
-                dom: null
+            if(sameType) {
+                // update props
+                newFibler = {
+                    type: oldFiber.type,
+                    props: element.props,
+                    dom: oldFiber.dom,
+                    parent: wipFiber,
+                    alternate: oldFiber,
+                    effectTag: EFFECT_UPDATE,
+                }
+            }
+
+            if(element && !sameType) {
+                // create a new DOM node
+                newFibler = {
+                    type: element.type,
+                    props: element.props,
+                    dom: null,
+                    parent: wipFiber,
+                    alternate: null,
+                    effectTag: EFFECT_PLACEMENT,
+                }
+            }
+
+            if(oldFiber && !sameType) {
+                // remove the oldNode
+                oldFiber.effectTag = EFFECT_DELETION
+                deletions.push(oldFiber)
+            }
+
+            if (oldFiber) {
+                oldFiber = oldFiber.sibling
             }
 
             if (index === 0) {
-                fiber.child = newFibler
+                wipFiber.child = newFibler
             } else {
                 prevSibling.sibling = newFibler
             }
@@ -105,6 +202,17 @@
             prevSibling = newFibler
             index++
         }
+    }
+
+    function performUnitOfWork(fiber) {
+        // to add dom node
+        if (!fiber.dom) {
+            fiber.dom = createDom(fiber)
+        }
+
+        // to create new fibers
+        const elements = fiber.props.children
+        reconcileChildren(fiber, elements)
 
         // to return next unit of work
         if(fiber.child) {
