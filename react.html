@@ -149,6 +149,16 @@
     //     我们只需要遍历剩下的newChildren生成 Placement 的 fiber
     // B.3 newChildren遍历完, oldFiber没遍历完
     //     本次更新比之前的节点数量少, 有节点被删除了. 所以需要遍历剩下的oldFiber, 标记Deletion
+    // B.4 newChildren与oldFiber都没遍历完
+    //     处理移动节点
+    //     将所有未处理的oldFiber存入以key为key，oldFiber为value的Map中(变量 existingChildren) 
+    //     遍历剩余的newChildren, 通过newChildren[i].key在existingChildren中找到key相同的oldFiber
+    //     标记节点是否移动
+    //     变量: 最后一个'可复用节点'在oldFiber中的位置索引(变量lastPlacedIndex, 初始值为0)
+    //           遍历到的'可复用节点'在oldFiber中的位置索引(变量oldIndex)
+    //     按newChildren顺序排列遍历的过程, 每个遍历到的'可复用节点'一定是当前遍历到的所有'可复用节点'中最靠右的那个
+    //     if(oldIndex < lastPlacedIndex) newFiber.effectTag = Placement // this is a move
+    //     if(oldIndex >= lastPlacedIndex) lastPlacedIndex = oldIndex // This item can stay in place.
     function reconcileChildren(wipFiber, elements) {
         let index = 0
         let oldFiber = wipFiber.alternate && wipFiber.alternate.child
