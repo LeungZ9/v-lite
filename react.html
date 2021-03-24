@@ -55,21 +55,33 @@
         wipRoot = null
     }
 
-    function commitWork(fiber) {
+    function commitWork(fiber, before) {
         if(!fiber) {
             return
         }
         const domParent = fiber.parent.dom
         if(fiber.effectTag === EFFECT_PLACEMENT && fiber.dom != null) {
-            domParent.appendChild(fiber.dom)
+            if (before) {
+                domParent.insertBefore(fiber.dom, before.dom)
+            } else {
+                domParent.appendChild(fiber.dom)
+            }
         } else if (fiber.effectTag === EFFECT_UPDATE && fiber.dom != null) {
             updateDom(fiber.dom, fiber.alternate.props, fiber.props)
         } else if (fiber.effectTag === EFFECT_DELETION) {
             domParent.removeChild(fiber.dom)
         }
-        domParent.appendChild(fiber.dom)
-        commitWork(fiber.child)
-        commitWork(fiber.sibling)
+        commitWork(fiber.child, getSlibing(fiber.child))
+        // commitWork(fiber.child)
+        // commitWork(fiber.sibling)
+    }
+
+    function getSlibing(fiber) {
+        if (fiber && fiber.sibling) {
+            commitWork(fiber.sibling, getSlibing(fiber.sibling.sibling))
+        }
+        return (fiber && fiber.sibling) || null
+        
     }
 
     function workLoop(deadline) {
