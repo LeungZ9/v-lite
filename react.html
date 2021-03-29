@@ -131,10 +131,11 @@
         })
 
         Object.keys(nextProps).forEach(item => {
-            if(item !== 'children' && nextProps[item] !== prevProps[item]) {
-                if(item.startsWith('on')) {
+            if(item !== 'children') {
+                if(item.startsWith('on') && nextProps[item].toString() !== prevProps[item].toString()) {
+                    dom.removeEventListener(item.slice(2).toLowerCase(), prevProps[item])
                     dom.addEventListener(item.slice(2).toLowerCase(), nextProps[item])
-                } else {
+                } else if (nextProps[item] !== prevProps[item]) {
                     dom[item] = nextProps[item] 
                 }
             }
@@ -285,28 +286,50 @@
             wipFiber.alternate.hooks[hookIndex]
         const hook = {
             state: oldHook ? oldHook.state : initial,
-            quene: []
+            quene: oldHook ? oldHook.quene : {
+                pending: null
+            }
         }
 
-        const actions = oldHook ? oldHook.quene : []
-        actions.forEach(action => {
-            hook.state = action(hook.state)
-        })
-
-        const setState = action => {
-            hook.quene.push(action)
-            wipRoot = {
-                dom: currentRoot.dom,
-                props: currentRoot.props,
-                alternate: currentRoot
+        if(hook.quene.pending) {
+            let baseState = hook.state
+            let update = hook.quene.pending.next
+            while (true) {
+                baseState = update.action(baseState)
+                update = update.next
+                if (update === hook.quene.pending) break
             }
-            nextUnitOfWork = wipRoot
-            deletions = []
+            hook.quene.pending = null
+            hook.state = baseState
         }
 
         wipFiber.hooks.push(hook)
         hookIndex++
-        return [hook.state, setState]
+        return [hook.state, dispatchAction.bind(null, hook.quene)]
+    }
+
+    // update 组成一个环状单向链表
+    function dispatchAction(queue, action) {
+        const update = {
+            action,
+            next: null
+        }
+        if (queue.pending === null) {
+            update.next = update
+        } else {
+            update.next = queue.pending.next
+            queue.pending.next = update
+        }
+        queue.pending = update
+
+        // schedule
+        wipRoot = {
+            dom: currentRoot.dom,
+            props: currentRoot.props,
+            alternate: currentRoot
+        }
+        nextUnitOfWork = wipRoot
+        deletions = []
     }
 
     const React = {

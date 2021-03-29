@@ -97,7 +97,8 @@ function patch(n1, n2) {
         for (const key in newProps) {
             const oldValue = oldProps[key]
             const newValue = newProps[key]
-            if(key.startsWith('on')) {
+            if(key.startsWith('on') && newValue.toString() !== oldValue.toString()) {
+                el.removeEventListener(key.slice(2).toLowerCase(), oldValue)
                 el.addEventListener(key.slice(2).toLowerCase(), newValue)
             } else {
                 if (newValue !== oldValue) {
