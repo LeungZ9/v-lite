@@ -199,7 +199,7 @@
                     dom: oldFiber.dom,
                     parent: wipFiber,
                     alternate: oldFiber,
-                    effectTag: EFFECT_UPDATE,
+                    effectTag: EFFECT_UPDATE, // .flags
                 }
             }
 
@@ -211,13 +211,13 @@
                     dom: null,
                     parent: wipFiber,
                     alternate: null,
-                    effectTag: EFFECT_PLACEMENT,
+                    effectTag: EFFECT_PLACEMENT, // .flags
                 }
             }
 
             if(oldFiber && !sameType) {
                 // remove the oldNode
-                oldFiber.effectTag = EFFECT_DELETION
+                oldFiber.effectTag = EFFECT_DELETION // .flags
                 deletions.push(oldFiber)
             }
 
