@@ -89,6 +89,8 @@ function mount(vnode, container) {
     }
     container.appendChild(el)
 }
+    
+// https://github.com/vuejs/vue-next/blob/master/packages/runtime-core/src/renderer.ts#patchKeyedChildren 
 function patch(n1, n2) {
     if (n1.tag === n2.tag) {
         const el = n2.el = n1.el
